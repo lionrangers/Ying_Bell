@@ -14,7 +14,7 @@ BUTTON_GPIO = 17     # 按键触发引脚
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_GPIO, GPIO.OUT)        # 配置LED为输出
 GPIO.setup(ENABLE_GPIO, GPIO.OUT)    # 配置使能为输出
-GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # 配置按键为输入
+GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # 配置按键为输入
 
 # 打开按键功能和点亮LED
 GPIO.output(ENABLE_GPIO, GPIO.HIGH)  # 启用按键功能
@@ -36,7 +36,7 @@ def stop_camera():
 # 按键监控逻辑
 def monitor_button():
     while True:
-        if GPIO.input(BUTTON_GPIO) == GPIO.LOW:  # 检测到按键按下
+        if GPIO.input(BUTTON_GPIO) == GPIO.HIGH:  # 检测到按键按下
             start_camera()
             time.sleep(0.5)  # 按键去抖
         time.sleep(0.1)

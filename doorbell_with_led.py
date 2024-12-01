@@ -1,70 +1,149 @@
 import tkinter as tk
 from tkinter import Button
 from picamera2 import Picamera2
+from PIL import Image, ImageTk
 import RPi.GPIO as GPIO
-import time
 from threading import Thread
+import time
 
-# GPIO引脚定义
-LED_GPIO = 27        # 按键LED控制引脚
-ENABLE_GPIO = 4      # 按键使能引脚
-BUTTON_GPIO = 17     # 按键触发引脚
+# GPIO定义
+LED_GPIO = 27
+ENABLE_GPIO = 4
+BUTTON_GPIO = 17
 
 # 初始化 GPIO
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED_GPIO, GPIO.OUT)        # 配置LED为输出
-GPIO.setup(ENABLE_GPIO, GPIO.OUT)    # 配置使能为输出
-GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # 配置按键为输入
+GPIO.setup(LED_GPIO, GPIO.OUT)
+GPIO.setup(ENABLE_GPIO, GPIO.OUT)
+GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
-# 打开按键功能和点亮LED
-GPIO.output(ENABLE_GPIO, GPIO.HIGH)  # 启用按键功能
-GPIO.output(LED_GPIO, GPIO.HIGH)     # 点亮按键LED
+GPIO.output(ENABLE_GPIO, GPIO.HIGH)
+GPIO.output(LED_GPIO, GPIO.HIGH)
 
-# 初始化摄像头
+# 摄像头初始化
 camera = Picamera2()
 
-# 摄像头控制逻辑
+# 全局变量
+camera_running = False
+root = None
+canvas = None
+screen_width = 0
+screen_height = 0
+exit_flag = False  # 全局退出标志
+
 def start_camera():
-    camera.configure(camera.create_preview_configuration())
-    camera.start()
-    print("Camera started!")
+    """
+    启动摄像头并动态调整分辨率
+    """
+    global camera_running
+    if not camera_running:
+        print("Initializing Camera...")
+        camera.configure(camera.create_preview_configuration(main={"size": (screen_width - 300, screen_height)}))
+        camera.start()
+        camera_running = True
+        print("Camera started!")
+        update_frame()
 
 def stop_camera():
-    camera.stop()
-    print("Camera stopped!")
+    """
+    停止摄像头
+    """
+    global camera_running
+    if camera_running:
+        camera.stop()
+        camera_running = False
+        print("Camera stopped!")
 
-# 按键监控逻辑
+def update_frame():
+    """
+    在 Tkinter 窗口中实时更新摄像头画面
+    """
+    if camera_running:
+        frame = camera.capture_array()
+        frame_image = Image.fromarray(frame)
+        frame_photo = ImageTk.PhotoImage(frame_image)
+
+        canvas.create_image(0, 0, anchor=tk.NW, image=frame_photo)
+        canvas.image = frame_photo
+
+        root.after(10, update_frame)
+
 def monitor_button():
-    while True:
-        if GPIO.input(BUTTON_GPIO) == GPIO.HIGH:  # 检测到按键按下
+    """
+    监控物理按键，用于启动摄像头
+    """
+    global exit_flag
+    while not exit_flag:
+        if GPIO.input(BUTTON_GPIO) == GPIO.HIGH:
+            print("Button Pressed!")
             start_camera()
-            time.sleep(0.5)  # 按键去抖
+            time.sleep(0.5)  # 防止重复触发
         time.sleep(0.1)
 
-# 创建屏幕控制界面
-def create_gui():
-    root = tk.Tk()
-    root.title("Camera Control")
-    root.geometry("400x200")
+def exit_program():
+    """
+    关闭窗口并退出程序
+    """
+    global exit_flag, root
+    exit_flag = True  # 设置退出标志
+    stop_camera()  # 停止摄像头
+    GPIO.output(LED_GPIO, GPIO.LOW)
+    GPIO.output(ENABLE_GPIO, GPIO.LOW)
+    GPIO.cleanup()  # 清理 GPIO 资源
+    print("Exiting program...")
+    root.destroy()  # 关闭 Tkinter 窗口
 
-    # 屏幕上的“关闭摄像头”按钮
-    stop_btn = Button(root, text="Stop Camera", command=stop_camera)
-    stop_btn.pack(pady=50)
+def create_gui():
+    """
+    创建 Tkinter 图形界面
+    """
+    global root, canvas, screen_width, screen_height
+    root = tk.Tk()
+    root.title("Camera Viewer")
+    root.attributes('-fullscreen', True)  # 自动全屏
+
+    # 获取屏幕分辨率
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    print(f"Screen resolution: {screen_width}x{screen_height}")
+
+    # 创建画布，用于显示摄像头画面
+    canvas_width = screen_width - 300  # 右侧留出 300px 放按钮
+    canvas_height = screen_height
+    canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg="black")
+    canvas.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+    # 添加按钮框架
+    button_frame = tk.Frame(root, bg="gray")  # 背景颜色用于调试布局
+    button_frame.grid(row=0, column=1, padx=10, pady=10, sticky="ns")
+
+    # 添加按钮：停止摄像头
+    stop_button = Button(button_frame, text="Stop Camera", command=stop_camera, height=2, width=15)
+    stop_button.pack(pady=20)
+
+    # 添加按钮：退出程序
+    exit_button = Button(button_frame, text="Exit Program", command=exit_program, height=2, width=15)
+    exit_button.pack(pady=20)
+
+    # 配置行列权重，让画布和按钮适应全屏
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+
+    # 绑定 Esc 键退出全屏模式
+    root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
 
     root.mainloop()
 
-# 主程序入口
+
 if __name__ == "__main__":
     try:
-        # 启动按键监控线程
         button_thread = Thread(target=monitor_button, daemon=True)
         button_thread.start()
 
-        # 启动屏幕控制界面
         create_gui()
-
     finally:
-        # 程序退出时关闭LED并释放资源
-        GPIO.output(LED_GPIO, GPIO.LOW)     # 关闭LED
-        GPIO.output(ENABLE_GPIO, GPIO.LOW) # 禁用按键功能
+        GPIO.output(LED_GPIO, GPIO.LOW)
+        GPIO.output(ENABLE_GPIO, GPIO.LOW)
         GPIO.cleanup()
+
+

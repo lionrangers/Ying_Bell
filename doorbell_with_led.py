@@ -146,4 +146,3 @@ if __name__ == "__main__":
         GPIO.output(ENABLE_GPIO, GPIO.LOW)
         GPIO.cleanup()
 
-

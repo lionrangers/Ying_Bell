@@ -17,3 +17,11 @@ This project aims to design an open-source, visual doorbell system that is user-
 | PIR sensor   | Montion Monitor   |
 | Button    |    |
 | 7 inch touch screen   | Monitor and input   |
+
+
+
+Connections:
+Button - LED power GPIO27
+Button - LED ground - ground
+Button - ON enable - GPIO4
+Button - ON button - GPIO17

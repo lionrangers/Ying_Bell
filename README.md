@@ -20,8 +20,8 @@ This project aims to design an open-source, visual doorbell system that is user-
 
 
 
-Connections:
-Button - LED power GPIO27;
-Button - LED ground - ground;
-Button - ON enable - GPIO4;
-Button - ON button - GPIO17;
+## Connections:
++ Button - LED power GPIO27;
++ Button - LED ground - ground;
++ Button - ON enable - GPIO4;
++ Button - ON button - GPIO17;

@@ -26,5 +26,7 @@ This project aims to design an open-source, visual doorbell system that is user-
 + Button - ON enable - GPIO4;
 + Button - ON button - GPIO17;
 + Relay - VCC - 3V3 (#17)
-+ Relay - IN - GPIO024 (#18)
++ Relay - IN - GPIO24 (#18)
 + Relay - GND - Ground (#20)
++ PIR - VCC - GPIO22 (15)
++ PIR - PIN - GPIO23
